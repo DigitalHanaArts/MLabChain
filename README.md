@@ -64,22 +64,6 @@ to about 5× across the plausible input space. The version above spans
 about 12× and is dominated by the quality term, which is the intended
 ordering.
 
-### What Mera is not
-
-**Mera is not a tradeable coin.** There is no network, no consensus,
-no exchange, no liquidity, and no way to send Mera to another person.
-It is a local, non-transferable counter. You cannot buy it, sell it,
-mine it for profit, or use it to pay for anything.
-
-**Mera is not a security.** It does not represent a claim on any asset.
-It is not issued by anyone. It is computed by your own machine from
-your own work and stored in your own JSON file.
-
-**Mera is not a claim about artificial intelligence, or about the value
-of a model.** It is a documented score for a specific kind of
-contribution — training a model against a fixed task — under a fixed
-scoring rule.
-
 What Mera *is*: a way to say "I did this much verified scientific
 training work, against this challenge, with this result, and here is
 the signed record." That is worth something to you. It is not worth
