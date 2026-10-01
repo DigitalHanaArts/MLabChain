@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="materials/mlabchain.png" alt="MLabChain" width="180"/>
+  <img src="matterials/mlabchain.png" alt="MLabChain" width="180"/>
 </p>
 
 <h1 align="center">MLabChain</h1>
@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="materials/MERA.png" alt="Mera" width="72"/>
+  <img src="matterials/MERA.png" alt="Mera" width="72"/>
   &nbsp;&nbsp;
   <strong>Mera</strong> — the unit MLabChain records.
 </p>
