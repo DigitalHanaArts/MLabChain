@@ -119,11 +119,6 @@ That is the only required dependency. Everything else — hashing,
 Merkle trees, block sealing, JSON persistence, the CLI, and the ML
 trainer — is standard library.
 
-There is no optional ROOT support in this build; MLabChain's demo
-datasets are synthetic. A future revision could add ROOT-file support
-by borrowing the ROOT-metadata layer from its sibling project
-HEPLabChain.
-
 ---
 
 ## Try it
