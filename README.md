@@ -16,7 +16,7 @@
 
 ---
 
-MLabChain is a small, local blockchain that records the provenance of
+MLabChain currently is a small, local blockchain that records the provenance of
 machine-learning experiments. Every training run becomes a signed
 transaction containing the config, the model, the architecture, the
 training metadata, and the quality metrics. Verification means
