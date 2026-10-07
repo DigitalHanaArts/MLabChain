@@ -699,12 +699,12 @@ Apache License 2.0. See [`LICENSE.txt`](LICENSE.txt).
 ---
 
 <p align="center">
-  <img src="https://github.com/DigitalHanaArts/dha/blob/main/assets/Hana_the_kitten.jpeg" alt="Hana" width="120" style="border-radius:8px;">
+  <img src="https://github.com/DigitalHanaArts/dha/blob/main/assets/Hana_the_kitten.jpeg" alt="Hana" width="313" style="border-radius:8px;">
 </p>
 
 <p align="center">
   <em>Proof-of-Scientific-Work. Verified work is paid. Everything else is provenance.</em>
 </p>
-```
+
 
 ---
