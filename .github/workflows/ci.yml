@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libssl-dev libsqlite3-dev libboost-all-dev
+      - name: Python dependencies
+        run: python3 -m pip install --upgrade pip && python3 -m pip install 'cryptography>=42' pytest
+      - name: Build
+        run: ./build.sh
+      - name: C++ tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Python tests
+        run: pytest
+      - name: Python compile check
+        run: python3 -m py_compile mlabchain.py

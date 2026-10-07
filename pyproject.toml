@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mera-mlabchain"
+version = "0.3.0.dev1"
+description = "Mera / MLabChain scientific-work ledger reference client"
+requires-python = ">=3.10"
+dependencies = ["cryptography>=42"]
+
+[project.scripts]
+mlabchain = "mlabchain:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

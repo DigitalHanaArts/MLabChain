@@ -1,0 +1,40 @@
+MERA / MLabChain v0.3
+=====================
+
+1. Python scientific layer
+   - challenge manifest creation
+   - deterministic ML training
+   - dataset/model/architecture/proof artifact hashing
+   - LSWU audit score
+   - wallet UI/CLI
+
+2. C++ consensus/state layer
+   - SQLite canonical state
+   - Ed25519 authentication
+   - signed transactions
+   - signed block proposals + SHA-256 PoW
+   - adaptive difficulty
+   - cumulative-work fork choice
+   - chain replay validation
+   - challenge registry / work claims / finite reward budgets
+   - account nonces / fees / mempool limits
+   - governance timelock
+   - P2P sync / mempool + block relay
+
+3. Mera asset model
+   - native fixed-supply accounting on the MLabChain ledger
+   - ML_WORK issuance only from registered verifier classes
+   - transfers are ordinary spendable balance movements
+   - challenge rewards are marginal and duplicate-resistant
+
+4. EVM representation
+   - MeraScientific.sol is a capped ERC-20 representation
+   - minting is restricted to a bridge role
+   - deposit IDs are replay protected
+   - admin/pauser authority is separated and delayed for admin transfer
+   - this is not a trustless bridge until a verified proof/attestation protocol exists
+
+5. Explicit trust boundary
+   ML_WORK is consensus-valid only when its verifier class is implemented in the node.
+   v0.3 provides one native deterministic linear-regression verifier. General GPU,
+   PyTorch, JAX, TensorFlow and stochastic training are not consensus-valid yet.

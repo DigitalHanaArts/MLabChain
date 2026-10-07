@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+build/
+mera_data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.venv/
+.DS_Store
+.pytest_cache/
+*.tmp
