@@ -1,7 +1,7 @@
 <p align="center">
-  <img src="assets/mlabchain.png" alt="MLabChain" width="120"/>
+  <img src="materials/mlabchain.png" alt="MLabChain" width="120"/>
   &nbsp;&nbsp;&nbsp;
-  <img src="assets/MERA.png" alt="Mera" width="96"/>
+  <img src="materials/MERA.png" alt="Mera" width="96"/>
 </p>
 
 <h1 align="center">Mera / MLabChain</h1>
