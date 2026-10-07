@@ -1,495 +1,686 @@
 <p align="center">
-  <img src="matterials/mlabchain.png" alt="MLabChain" width="222"/>
+  <img src="assets/mlabchain.png" alt="MLabChain" width="120"/>
+  &nbsp;&nbsp;&nbsp;
+  <img src="assets/MERA.png" alt="Mera" width="96"/>
 </p>
 
-<h1 align="center">MLabChain</h1>
+<h1 align="center">Mera / MLabChain</h1>
 
 <p align="center">
-  <em>Proof-of-Scientific-Work ledger for machine-learning experiments.</em>
+  <em>A scientific-work ledger with a native unit called Mera.</em><br>
+  <strong>v0.3.0-devnet</strong> &nbsp;·&nbsp; reference testnet &nbsp;·&nbsp; Apache-2.0
 </p>
 
 <p align="center">
-  <img src="matterials/MERA.png" alt="Mera" width="111"/>
-  &nbsp;&nbsp;
-  <strong>Mera</strong> — the unit MLabChain records.
+  <img src="assets/DHA_logo_h.png" alt="Digital Hana Arts" height="36"/>
 </p>
 
 ---
 
-MLabChain currently is a small, local blockchain that records the provenance of
-machine-learning experiments. Every training run becomes a signed
-transaction containing the config, the model, the architecture, the
-training metadata, and the quality metrics. Verification means
-re-training from the recorded config and checking that the numbers
-match.
+MLabChain is a small, honest ledger for machine-learning work. It records
+training runs as signed, replayable transactions and issues a native unit
+called **Mera** for the ones that measurably improve a pinned scientific
+baseline. Deterministic work is paid. Everything else is recorded as
+provenance, not money.
 
-That is the whole idea. One person, one laptop, no network, no GPU
-required, no service to depend on.
+The project splits cleanly:
 
----
+- **Python** owns the scientific layer — training, challenges, artifacts, wallet UX.
+- **C++** owns the monetary layer — signatures, replay, fork choice, fees, supply.
 
-## What Mera is
-
-Mera (plural: Mera) is the unit MLabChain records. One Mera is one unit
-of **verified scientific work**: training a model against a pinned
-challenge, on a pinned dataset, with a pinned split, and beating a
-pinned baseline by a documented amount.
-
-Mera is computed from three things:
-
-- **how much data** was used,
-- **how much wall time** the training actually consumed,
-- **how much better** the resulting model is than the challenge's
-  baseline.
-
-Each of these enters through a bounded, hardware-agnostic formula
-(LabChain Scientific Work Unit, LSWU):
-
-```
-Mera =  D(N)^0.15  ·  T(t)^0.30  ·  Q(I)^1.00
-```
-
-with
-
-```
-D(N) = ln(1 + N / N0)                N0 = 100 000
-T(t) = ln(1 + t / t0)                t0 = 60 seconds
-Q(I) = I^η / (1 + I^η)               η  = 2
-I    = NMSE_baseline / NMSE_model
-```
-
-The exponents do **not** sum to one. That is deliberate: summing to
-one gives a geometric mean, which compresses the reward's dynamic range
-to about 5× across the plausible input space. The version above spans
-about 12× and is dominated by the quality term, which is the intended
-ordering.
-
-What Mera *is*: a way to say "I did this much verified scientific
-training work, against this challenge, with this result, and here is
-the signed record." That is worth something to you. It is not worth
-anything to a market, and it should never be described as if it were.
-
-If you came here looking for an investment opportunity, this is not
-one, and the rest of the README will be more useful to you if you close
-the tab now.
+That split is deliberate. The core can be audited without reading a line of
+Python. The Python layer can be replaced without touching consensus rules.
 
 ---
 
-## The actual idea
+## Table of contents
 
-Bitcoin burns electricity to compute hashes with leading zeros. The
-hashes are deliberately meaningless — that is what makes the system
-trustless, because nobody wants a hash and so nobody will produce one
-except to mine.
-
-MLabChain asks a different question. What if the work you did to earn
-the reward *was itself the useful thing*? What if mining a block meant
-training a model, and the proof of that work was the model?
-
-The answer, developed in detail across the project's documentation, is:
-you can make mining produce something useful, or you can make mining
-secure and decentralised, but so far nobody has made it do both. The
-properties that make Bitcoin work — expensive to produce, cheap to
-verify, worthless to anyone but the miner — are exactly the properties
-useful mining has to give up.
-
-MLabChain sits on the "useful" side of that line. It is not a
-production blockchain. It is a **provenance ledger**: it records what
-you trained, when, against what, and with what result, in a form you
-can verify later by re-running the training and checking that the
-numbers agree.
-
-The trade-off is measured and reported: `verify-ml` prints the ratio
-between the verification wall time and the reported training wall time.
-For deterministic training on the same hardware, that ratio is about 1.
-For Bitcoin, the equivalent ratio is about 2^20. That difference is
-not a bug — it is the definition of useful work.
+1. [What this is](#what-this-is)
+2. [What this is not](#what-this-is-not)
+3. [Architecture](#architecture)
+4. [Quick start](#quick-start)
+5. [The scientific work model](#the-scientific-work-model)
+6. [The Mera asset](#the-mera-asset)
+7. [Consensus and fork choice](#consensus-and-fork-choice)
+8. [Wallet, keys, and accounts](#wallet-keys-and-accounts)
+9. [Networking](#networking)
+10. [Governance](#governance)
+11. [Migration from v0.2](#migration-from-v02)
+12. [Tests](#tests)
+13. [Honest boundary](#honest-boundary)
+14. [Repository layout](#repository-layout)
+15. [Credits](#credits)
+16. [License](#license)
 
 ---
 
-## Install
+## What this is
 
-Python 3.10 or newer.
+MLabChain is a **research-grade testnet** for one specific idea: that a
+blockchain can pay for a bounded class of **deterministic, reproducible**
+machine-learning computations.
 
-```
-pip install cryptography
-```
+A training run becomes a signed transaction containing the challenge, the
+dataset commitment, the model, the architecture, the training parameters, and
+the metrics. A C++ core validates signatures, account nonces, fixed-point
+reward arithmetic, supply caps, Merkle roots, block PoW, and fork choice. A
+Python client performs the training and writes the artifacts to disk.
 
-That is the only required dependency. Everything else — hashing,
-Merkle trees, block sealing, JSON persistence, the CLI, and the ML
-trainer — is standard library.
+The unit that gets issued is **Mera**. It is minted only when a submitted
+model measurably improves the challenge's *current best frontier*, subject to a
+finite per-challenge budget and a global supply cap of 100,000,000.
 
----
+Chain security is a **separate** mechanism from scientific work:
 
-## Try it
+- **Chain PoW** seals blocks and provides a Sybil-resistance signal.
+- **Scientific work** is the ML computation committed by `ML_WORK` transactions.
 
-```
-python mlabchain.py demo
-```
-
-This creates a challenge, trains three models against it, records each
-training as a signed transaction, seals three blocks, validates the
-chain, prints the accumulated Mera, and verifies the last model by
-re-training and comparing metrics and cost.
-
-Takes about two seconds.
-
-Then:
-
-```
-python mlabchain.py status
-python mlabchain.py validate
-python mlabchain.py credits
-```
+This separation means a change to the ML verifier does not require a change to
+the block-sealing rules, and vice versa.
 
 ---
 
-## Real usage
+## What this is not
 
-Create a wallet once:
+Stated plainly, because the project's credibility depends on saying it:
 
-```
-python mlabchain.py create-wallet
-```
+- **Not a currency.** There is no exchange listing, no price, no market, no
+  promise of one.
+- **Not a general ML verifier.** Only deterministic linear regression is
+  consensus-paid in v0.3. GPU training, PyTorch, JAX, and stochastic
+  optimisation are *not* consensus-valid.
+- **Not a proof system.** A model hash is a commitment, not a proof that a
+  training procedure ran. Deterministic re-execution is the only sound
+  verifier, and it only works for verifier classes the node implements.
+- **Not a trustless bridge.** The ERC-20 contract is a representation
+  template. Mint authority is a trust boundary until a proof-based bridge
+  exists.
+- **Not an audited mainnet.** The reference node is a devnet. No security
+  audit, no fuzzing, no battle-testing.
+- **Not decentralised P2P.** The reference protocol is plaintext, single
+  connection per request, and has no peer discovery, anti-eclipse, or
+  connection quotas.
 
-Create a challenge:
-
-```
-python mlabchain.py challenge-create \
-    --id MLC-LINEAR-001 \
-    --output challenge.json \
-    --n-samples 1000 \
-    --n-features 5 \
-    --seed 42
-```
-
-The challenge pins:
-
-- the dataset (here, a synthetic linear generator with a fixed seed
-  and its SHA-256),
-- the split rule (`first_fraction`) and the training fraction,
-- the metric (`NMSE`),
-- the baseline (the mean predictor, whose NMSE on the test split is
-  exactly 1.0 by construction),
-- the LSWU scoring parameters.
-
-Inspect it:
-
-```
-python mlabchain.py challenge-inspect challenge.json
-```
-
-Write a training config:
-
-```
-cat > config.json <<'JSON'
-{
-  "model_type": "linear-regression",
-  "framework": "mlabchain-native",
-  "learning_rate": 0.01,
-  "epochs": 50
-}
-JSON
-```
-
-Train, record, and seal in one step:
-
-```
-python mlabchain.py mine --challenge challenge.json --config config.json
-```
-
-Verify by re-training:
-
-```
-python mlabchain.py verify-ml --model mlabchain_data/models/model_ab12cd34ef56.pkl
-```
-
-The verifier prints every recorded metric next to its recomputed value,
-recomputes Mera factor-by-factor, recomputes the symbolic operation
-count, and prints the verification-to-training wall-time ratio.
+If you are looking for an investment, close the tab. If you are looking for a
+scientific provenance ledger that pays for one narrow, verifiable class of ML
+work, keep reading.
 
 ---
 
-## The scoring formula in more detail
-
-### Why normalised MSE
-
-Raw MSE has the units of the target variable squared. A model with
-MSE = 0.001 on a problem with variance 0.01 is *not* better than a
-model with MSE = 0.1 on a problem with variance 10. Normalising by the
-test-set variance makes the number dimensionless and comparable across
-problems:
+## Architecture
 
 ```
-NMSE = MSE / Var(y_test)
+                  ┌──────────────────────────────────────┐
+                  │  mlabchain.py — Python scientific    │
+                  │  ────────────────────────────────    │
+                  │  • deterministic ML training         │
+                  │  • challenge manifest creation       │
+                  │  • dataset / model / arch hashing    │
+                  │  • LSWU audit score                  │
+                  │  • Scrypt + AES-GCM wallet           │
+                  │  • transaction construction          │
+                  └─────────────────┬────────────────────┘
+                                    │ subprocess boundary
+                                    ▼
+                  ┌──────────────────────────────────────┐
+                  │  mera_core.cpp — C++ consensus core  │
+                  │  ────────────────────────────────    │
+                  │  • Ed25519 authentication            │
+                  │  • SQLite canonical state            │
+                  │  • signed block proposals            │
+                  │  • adaptive SHA-256 PoW              │
+                  │  • cumulative-work fork choice       │
+                  │  • replay-based validation           │
+                  │  • challenge registry                │
+                  │  • fixed-point reward issuance       │
+                  │  • fee market + mempool limits       │
+                  │  • TCP sync + relay                  │
+                  └─────────────────┬────────────────────┘
+                                    │
+                                    ▼
+                             native MERA balance
+                                    │
+                                    ▼
+                  ┌──────────────────────────────────────┐
+                  │  MeraScientific.sol — ERC-20         │
+                  │  representation template             │
+                  │  (not a trustless bridge)            │
+                  └──────────────────────────────────────┘
 ```
-
-### Why a baseline-relative quality term
-
-Comparing NMSE to a pinned baseline makes the score depend on the
-*problem*, not on the units. The baseline must be pinned by the
-challenge — if a contributor chooses their own baseline, they can
-inflate the score by choosing a weak one, and no amount of re-training
-will catch it because the baseline is a signed number, not a
-measurement.
-
-The challenge supports two baseline kinds:
-
-- `mean_predictor` — the baseline predicts the mean of the test set.
-  Its NMSE is exactly 1.0 by construction, so `I = 1 / NMSE_model`.
-  This is what the demo uses.
-- `model` — a reference model, identified by hash, whose NMSE is
-  recorded in the challenge manifest. Not implemented in this build.
-
-### Why logarithms
-
-If time rewards were linear, someone could sleep their process and
-inflate the score. Log scale gives diminishing returns, so an hour of
-training earns more than a minute, but not sixty times more. The same
-applies to dataset size.
-
-### What Mera is not sensitive to
-
-Hardware. A PC and a supercomputer that solve the same challenge to
-the same quality level earn similar Mera, even though their wall times
-differ by an order of magnitude. The log time term compresses the
-difference; the quality term dominates the ordering. This is the
-property the design is built around: Mera rewards *verified scientific
-work*, not *hardware*.
 
 ---
 
-## Proof-of-Scientific-Work, plainly stated
+## Quick start
 
-The README has used the phrase "Proof-of-Scientific-Work." It deserves
-a straight definition, because it is not a proof in the cryptographic
-sense.
+### Requirements
 
-**What it means here:** the chain records a signed claim that a
-specific training was performed against a specific pinned challenge
-with a specific config, producing a specific model and specific
-metrics. Anybody with the challenge manifest and the config can
-re-execute the training and check that the recorded metrics match.
+- Python 3.10 or newer
+- A C++17 compiler, CMake ≥ 3.20
+- OpenSSL, SQLite3, and Boost headers
+- On Windows: MSYS2 (recommended), WSL, or Visual Studio Build Tools
 
-**What it does not mean:** that verification is cheap. Re-executing
-training costs what training costs. For a large model on a large
-dataset, a full audit can take hours or days. The chain does not
-pretend otherwise.
+### Build the native core
 
-The chain is a **tamper-evident record of claims**. Verification is
-re-execution, performed by whoever wants to audit a specific
-transaction. There is no automatic, cheap, per-transaction check — the
-whole point of useful work is that no such check exists.
+```bash
+# Linux / macOS
+./build.sh
+
+# Windows PowerShell
+./build.ps1
+```
+
+This produces `build/mera_core` (or `build/Release/mera_core.exe` on Windows)
+and runs the C++ self-test plus CTest.
+
+### Install the Python client
+
+```bash
+python -m pip install -e .
+```
+
+or, if you prefer explicit dependencies:
+
+```bash
+python -m pip install "cryptography>=42" pytest
+```
+
+### Create a devnet node
+
+```bash
+python mlabchain.py --data-dir ./node1 init --network devnet
+python mlabchain.py --data-dir ./node1 create-wallet
+```
+
+The wallet password can be supplied through `MERAWALLET_PASSWORD` or entered
+interactively. It must be at least 10 characters.
+
+### Fund and inspect
+
+```bash
+MERAWALLET_PASSWORD='a-long-demo-password' \
+  python mlabchain.py --data-dir ./node1 faucet --amount 5
+
+python mlabchain.py --data-dir ./node1 balance
+python mlabchain.py --data-dir ./node1 status
+python mlabchain.py --data-dir ./node1 validate
+```
+
+### Register a challenge and submit work
+
+```bash
+python mlabchain.py --data-dir ./node1 challenge-create \
+  --id MLC-LINEAR-001 \
+  --output ./node1/challenges/MLC-LINEAR-001.json \
+  --n-samples 1200 --n-features 4 --seed 42 \
+  --noise 0.1 --train-fraction 0.8 --max-epochs 100
+
+python mlabchain.py --data-dir ./node1 challenge-register \
+  --manifest ./node1/challenges/MLC-LINEAR-001.json \
+  --budget 100
+
+python mlabchain.py --data-dir ./node1 mine \
+  --challenge ./node1/challenges/MLC-LINEAR-001.json \
+  --config ./config.json
+```
+
+### Transfer Mera
+
+```bash
+python mlabchain.py --data-dir ./node1 transfer \
+  --to MERA1... \
+  --amount 0.10 \
+  --mine
+```
+
+### Run a two-node devnet
+
+```bash
+mera_core --data-dir ./node1 node \
+  --listen-host 127.0.0.1 --port 19001 \
+  --peers 127.0.0.1:19002
+
+mera_core --data-dir ./node2 node \
+  --listen-host 127.0.0.1 --port 19002 \
+  --peers 127.0.0.1:19001
+
+python mlabchain.py --data-dir ./node2 sync --peer 127.0.0.1:19001
+```
 
 ---
 
-## Commands
+## The scientific work model
 
-| Command | Purpose |
+### Challenges
+
+A challenge is a registered object that pins the task:
+
+| Field | Meaning |
 |---|---|
-| `demo` | Full end-to-end demonstration. |
-| `create-wallet` | Generate a new RSA wallet. |
-| `hash-file PATH` | SHA-256 of a file. |
-| `challenge-create` | Create a synthetic-linear challenge manifest. |
-| `challenge-inspect PATH` | Print a challenge manifest. |
-| `mine` | Seal a block. With `--challenge` and `--config`, trains first. |
-| `status` | Print the chain, per-transaction Mera and operation counts. |
-| `validate` | Check hashes, block sealing, Merkle roots, signatures. |
-| `credits` | Show accumulated Mera and symbolic operation totals. |
-| `symbolic --tx-hash HEX` | Show the symbolic cost breakdown of one transaction. |
-| `verify-ml --model PATH` | Re-train and compare metrics, Mera, and cost. |
-| `verify-ml --tx-hash HEX` | Same, addressed by transaction hash. |
+| `challenge_id` | Unique name, e.g. `MLC-LINEAR-001` |
+| `manifest_hash` | SHA-256 of the canonical challenge manifest |
+| `dataset_sha256` | Commitment to the dataset |
+| `verifier` | The verifier class that will pay for work |
+| `metric` | The scoring metric (`NMSE` in v0.3) |
+| `split_rule` | Deterministic train/test split |
+| `n_samples`, `n_features` | Dataset dimensions |
+| `train_fraction_ppm` | Training fraction, in parts per million |
+| `max_epochs` | Bound on submitted training runs |
+| `baseline_scaled` | Fixed-point baseline NMSE |
+| `budget` | Finite Mera budget for the challenge |
+| `activation_height` | Maturity delay before submissions are accepted |
+| `expiry_height` | After this height, the challenge is closed |
 
----
+A challenge must be registered with a **bond** (devnet: `0.001 MERA`),
+becomes **active** after `CHALLENGE_MATURITY = 8` blocks, and **expires**
+after `CHALLENGE_LIFETIME = 1000` blocks.
 
-## What is recorded in a transaction
+### Verifier classes
 
-Each `ML_TRAINING` transaction commits to:
+v0.3 pays for exactly one verifier: `MLabChain-linear-v4`. It is deterministic
+linear regression with a seeded dataset generator, a fixed SGD order, and a
+fixed train/test split. Every node can replay it byte-for-byte.
 
-- the **challenge** it was run against: challenge ID, manifest SHA-256,
-  dataset SHA-256, split rule, train fraction, metric, baseline kind,
-  baseline NMSE;
-- the **config** in full, plus its canonical hash;
-- the **model file**: path, SHA-256, size;
-- the **architecture file**: path, SHA-256, size, and text content;
-- the **training metadata**: number of training examples, number of
-  test examples, epochs, learning rate, reported wall time in seconds;
-- the **metrics**: MSE on train and test, test-set variance, NMSE of
-  the model, NMSE of the baseline, R² on the test set;
-- the **Mera score** with all its components (`D`, `T`, `Q`, `I`, and
-  each powered factor);
-- the **symbolic cost**: elementary operation count `C_train_ops`,
-  which equals `C_verify_ops` by construction;
-- free-form notes and tags;
-- a timestamp and an RSA signature.
-
----
-
-## Verification semantics
-
-`verify-ml` re-executes the training from the transaction's config and
-challenge fields, then:
-
-1. Compares each recorded metric to the recomputed one, to floating-point
-   tolerance.
-2. Recomputes Mera factor by factor and compares.
-3. Recomputes the symbolic operation count and prints the comparison.
-4. Measures its own wall time and prints the ratio to the reported
-   training time, with the interpretation spelled out.
-
-Because the trainer is deterministic (linear regression with no
-shuffling, seeded dataset generation, fixed split), metric matches are
-exact. In a stochastic training regime the same code would produce
-approximate matches, and the check would need to be relaxed — the
-docstring of `run_challenge_training` marks this assumption.
-
-Three outcomes are possible:
-
-- **VERIFIED** — every metric and every Mera component matches.
-- **MISMATCH** — a metric or a Mera component diverges.
-- **NOT FOUND** — no matching transaction in the chain.
-
----
-
-## What is in the box
+The symbolic operation model is:
 
 ```
-mlabchain.py              the whole thing, one file
-README.md                 this document
-LICENSE.txt               Apache 2.0
-requirements.txt          cryptography
-materials/
-├── mlabchain.png         project logo
-└── MERA.png              Mera logo
-mlabchain_data/
-├── blockchain.json       the chain
-├── wallet.json           your RSA keypair (plaintext)
-├── challenges/           challenge manifests
-├── models/               trained models and architecture files
-└── demo/                 artifacts created by `demo`
+ops = epochs × n_train × (3 × n_features + 4)
 ```
 
-The chain file is human-readable JSON. You can `cat` it, `jq` it, diff
-it, grep it.
+This is hardware-independent by design. A slower machine does not earn more.
+A faster machine does not earn less per proof.
+
+### Marginal rewards
+
+Reward is measured against the challenge's **current best** accepted quality,
+not against the original baseline:
+
+```
+quality_ppm = clamp( (baseline − model) × 1e6 / baseline, 0, 1e6 )
+
+delta_q = quality_ppm − challenge.best_quality_ppm
+
+reward  = min( 50 MERA,
+               ops × delta_q × 1e8 / (1e7 × 1e6) )
+```
+
+Integer arithmetic only. Two constants matter:
+
+- `OPS_PER_MERA = 10,000,000` — the reward scale.
+- `MAX_WORK_REWARD = 50 MERA` — the per-proof cap.
+
+The reward is additionally constrained by:
+
+- `reward ≤ challenge.budget_remaining`
+- `total_supply + reward ≤ 100,000,000 MERA`
+
+### Anti-farming rules
+
+- One reward claim per `(challenge, dataset, model)`.
+- No reward if the submission does not improve the challenge frontier.
+- Minimum challenge size (1000 samples on devnet).
+- Registration bond and maturity delay.
+- Per-proposer active-challenge limit (`MAX_ACTIVE_CHALLENGES_PER_PROPOSER = 8`).
+- Maximum symbolic operations per proof (`MAX_OPS_PER_WORK = 10^15`).
+
+These reduce duplicate payment and trivial-challenge farming. They do not
+provide perfect Sybil resistance. See [Honest boundary](#honest-boundary).
+
+### Wall time
+
+Wall time is recorded in the transaction as an audit metric. It is **not** a
+minting input. A miner cannot increase issuance by reporting a slower clock.
+
+### LSWU
+
+The LabChain Scientific Work Unit is computed and stored in the transaction
+payload as a scientific audit score. The consensus reward does **not** depend
+on it. See `docs/MERA_PROTOCOL.md` for the full formula and rationale.
 
 ---
 
-## Honest limitations
+## The Mera asset
 
-- **The private key is plaintext.** `wallet.json` is not encrypted.
-  Do not reuse this wallet for anything of value.
-- **This is a single-writer chain.** Anyone with write access to
-  `mlabchain_data/` can rewrite the whole thing from genesis. Validation
-  gives internal consistency, not protection from a determined attacker.
-- **The wall-time field is a claim.** A miner can report a larger number
-  than they actually spent. Re-training catches this indirectly, by
-  showing that the true cost is lower, but only if someone actually
-  re-trains.
-- **The baseline must be pinned by the challenge.** If a contributor
-  chooses their own baseline, the quality term becomes a signed claim.
-  The challenge manifest machinery exists specifically to prevent this.
-- **Verification costs what training costs.** Do not expect cheap
-  per-transaction checks. There are none, and there cannot be any,
-  given what the system is trying to do.
-- **Only linear regression is implemented.** The symbolic cost formula
-  `3F + 4` is specific to that trainer. Any other model class would
-  need its own op-per-sample count.
-- **Only synthetic datasets are implemented.** Real file-backed datasets
-  (ROOT, CSV, HDF5) are future work.
-- **No schema migration.** Bumping the schema means a new chain or
-  manual conversion.
-- **Not audited.** Use it on things you can afford to lose.
+| Parameter | Value |
+|---|---:|
+| Asset | MERA |
+| Atomic units | 100,000,000 per MERA |
+| Decimals | 8 |
+| Maximum supply | 100,000,000 MERA |
+| Per-proof reward cap | 50 MERA |
+| Minimum transfer fee | 0.0001 MERA |
+| Minimum ML-work fee | 0.001 MERA |
+| Challenge bond (devnet) | 0.001 MERA |
+| Fees | burned |
+| Consensus seal | SHA-256 block PoW |
 
----
+### Native ledger
 
-## On the name "Mera"
+Balances are maintained as O(1) chain metadata. State is defined by replaying
+the canonical block history from genesis. SQLite is a materialised view of that
+state, not the source of truth.
 
-The unit is called Mera because it needed a name that was short, easy
-to type, and not already taken by another scientific unit. It is used
-in the sense of "one measure of verified training work," the same way
-"joule" means one measure of energy.
+### EVM representation
 
-Mera 0.1.7 is not a ticker symbol, not an asset, and not something that trades
-anywhere. If you find a project elsewhere that uses a similar name for
-a financial instrument, it is not this project and it has nothing to do
-with this project.
+`contracts/MeraScientific.sol` is an ERC-20 template with:
+
+- 8 decimals
+- Hard cap of 100,000,000 MERA
+- `MINTER_ROLE` for a bridge authority
+- Per-deposit replay protection (`usedDepositIds`)
+- `PAUSER_ROLE` for incident response
+- `AccessControlDefaultAdminRules` with a 2-day delayed admin transfer
+- `ERC20Permit` and `ERC20Burnable`
+
+It is **not** a trustless bridge. The bridge authority is a trust boundary
+until a proof-based bridge or audited threshold signer replaces it.
 
 ---
 
-## What I would build next
+## Consensus and fork choice
 
-- **File-backed datasets.** A `dataset_kind="file"` that hashes a local
-  ROOT or CSV file and parses a specified column range, so challenges
-  can be defined against real data.
-- **Non-linear models.** A small neural network in pure Python, with
-  its own operation-count function, so the LSWU formula has more than
-  one trainer to apply to.
-- **Real baselines.** Consume `baseline_kind="model"`, loading a
-  reference model from a hash-addressed store.
-- **Cross-hardware normalisation.** A benchmark embedded in the
-  challenge, so that the wall-time ratio can be interpreted on a
-  consistent scale across machines.
-- **A `status --query` filter** by challenge ID, tag, or metric range.
-- **Export to Markdown or LaTeX**, for pasting a training-record table
-  into a paper's supplementary material.
+### Block structure
 
-None of these are hard. They are just not written yet.
+Each block contains:
+
+- `height`, `timestamp_ms`
+- `previous_hash`
+- `merkle_root` over transaction IDs
+- `producer` address, `producer_pubkey`, `producer_signature`
+- `difficulty`, `nonce`
+- `chain_work` (cumulative)
+- `total_ops`, `total_rewards`
+
+The block hash is `SHA256(header)`, where the header includes the producer
+signature. A valid block requires `block_hash` to start with `difficulty`
+hex zeroes.
+
+### Fork choice
+
+Nodes accept the chain with the **highest cumulative work**. Ties break by
+lower tip hash. A candidate chain is validated by replaying it from genesis.
+On reorg, the canonical SQLite state is replaced by replay.
+
+### Difficulty
+
+Retargeted every `DIFFICULTY_WINDOW = 16` blocks toward a target block time of
+`TARGET_BLOCK_MS = 60,000`. The adjustment is bounded to ±1 step per retarget
+and clamped to `[MIN_DIFFICULTY, MAX_DIFFICULTY] = [1, 8]`.
+
+### Timestamps
+
+A block's timestamp must be strictly greater than the median of the last 11
+blocks and no more than `MAX_FUTURE_MS = 120,000` ms ahead of local time.
+
+### Mempool
+
+- `MAX_MEMPOOL_TX = 20,000` transactions
+- `MAX_PENDING_PER_SENDER = 32`
+- `MAX_BLOCK_TX = 2,048`
+- `MAX_TX_BYTES = 64 KiB`
+- `MAX_BLOCK_BYTES = 1 MiB`
+- Fee-priority selection, with per-sender reservation for pending spend
+
+### Limits
+
+`MAX_NOTE_BYTES = 4096`. A `MAX_OPS_PER_WORK = 10^15` bound on symbolic work
+per proof.
 
 ---
 
-## Why this exists
+## Wallet, keys, and accounts
 
-I work with machine-learning models on physics data. I have trained
-models, published results, and then six months later been unable to
-reconstruct exactly which config, which split, and which data produced
-the numbers in a plot. Git helps with the code. Nothing helps with the
-trained weights, the metrics, or the exact hyperparameters.
+### Standard accounts
 
-MLabChain fixes that, for me, on my laptop, without asking anyone's
-permission. It gives me a signed record of every training run I care
-about, and it lets me verify the record later by re-running the
-training and checking the numbers.
+Ed25519 public keys with a **checksum address**:
 
-That is a small thing. It is worth a small thing.
+```
+address = "MERA1" + sha256(pubkey)[:40] + sha256("MERA-ADDR-V3|" + prefix)[:8]
+```
 
-If you find a bug, open an issue. If you want a new model class, send
-a PR. If you want to describe this as a coin, please don't — the README
-has been careful to explain why, and the code has been careful to make
-it impossible.
+A checksum mismatch causes the core to reject the address.
 
-— someone who has spent too long looking for old configs
+### Encryption
+
+The wallet file is encrypted with **Scrypt + AES-GCM**:
+
+```
+KDF      = scrypt(N=2^15, r=8, p=1)
+Cipher   = AES-256-GCM
+Auth tag = "MERA-WALLET-V2"
+```
+
+The KDF parameters are stored in the wallet file so they can be raised in a
+future version without invalidating existing wallets.
+
+### Multisig
+
+`MERA2` addresses require an `m-of-n` Ed25519 signature set. Keys are sorted
+canonically before address derivation. Threshold and key set are stored in
+the transaction for verification.
+
+### Key rotation
+
+`KEY_ROTATE` changes the authorized public key without changing the account
+address. After rotation, the new key authorizes transfers, producer
+signatures, and ML submissions.
+
+### Backups
+
+`backup --output FILE` uses SQLite's online backup API. The wallet is a
+separate file and must be backed up separately:
+
+```bash
+python mlabchain.py --data-dir ./node1 wallet-backup --output ./backup/wallet.json
+```
+
+### Seed phrase, hardware wallets
+
+Not implemented. See [Honest boundary](#honest-boundary).
+
+---
+
+## Networking
+
+The reference P2P protocol supports:
+
+| Message | Purpose |
+|---|---|
+| `PING` / `PONG` | Liveness |
+| `STATUS` | Advertise height, tip, cumulative work |
+| `GETCHAIN` | Request the full chain from a peer |
+| `TX\|<wire>` | Relay a signed transaction |
+| `BLOCK\|<wire>` | Relay a block |
+
+The wire format is a length-delimited line of hex-encoded fields separated by
+`|`. Blocks include their transactions inline.
+
+Peer addresses are supplied on the command line. There is no discovery.
+
+See [Honest boundary](#honest-boundary) for what the reference protocol does
+not provide.
+
+---
+
+## Governance
+
+Selected fee parameters can be scheduled through a governance mechanism:
+
+- Genesis defines a governance multisig address and threshold.
+- `GOV_PARAM` transactions schedule a bounded fee change.
+- The change takes effect at `block_height + GOVERNANCE_TIMELOCK = 32`.
+- Only `min_fee`, `min_work_fee`, and `challenge_bond` are modifiable.
+
+The faucet status, supply cap, and reward formula are **not** modifiable by
+governance. They are committed at genesis.
+
+---
+
+## Migration from v0.2
+
+v0.3 does not silently interpret a v0.2 SQLite database as v0.3 state. The
+schema version is checked on open, and a mismatch is a hard error.
+
+To migrate:
+
+```bash
+python tools/migrate_v2.py \
+  --input ./old/mera_data/mera.sqlite \
+  --output ./migration/v2_snapshot.json
+```
+
+The output is an explicit migration snapshot containing account balances,
+nonces, the old genesis and tip, and a snapshot SHA-256. A production migration
+is expected to define a **new genesis/allocation ceremony** that commits to
+this snapshot before importing balances.
+
+This is intentional. Silently replaying v0.2 history under changed consensus
+rules would be less safe than an explicit migration boundary.
+
+---
+
+## Tests
+
+```bash
+ctest --test-dir build --output-on-failure
+pytest
+```
+
+The current suite covers:
+
+- Address checksums
+- Wallet encryption round trips
+- Deterministic training reproducibility
+- End-to-end ML submission, reward, transfer, and validation
+- P2P chain synchronization between two nodes
+- Genesis faucet policy on mainnet
+- Schema mismatch refusal and migration snapshot export
+
+Coverage is a work in progress. See `tests/test_protocol.py` for what is
+present and what is missing.
+
+### CI
+
+The GitHub Actions workflow builds on Ubuntu 22.04, runs CTest and pytest,
+and performs a Python compile check. Windows and macOS CI are not yet wired in.
+
+---
+
+## Honest boundary
+
+### What v0.3 pays for
+
+- Deterministic linear regression against a pinned challenge.
+- Registered, budgeted, maturity-delayed challenges.
+- Marginal rewards relative to the current best accepted quality.
+- Signed transfers, nonces, multisig, key rotation.
+- Fork choice by cumulative work, with reorg and replay.
+- Signed block proposals and adaptive SHA-256 PoW.
+- A small TCP P2P layer with sync and relay.
+- Scrypt + AES-GCM encrypted wallets.
+
+### What v0.3 does not claim
+
+- That a model hash proves a training procedure ran.
+- That verification is cheaper than re-execution.
+- That GPU, PyTorch, JAX, or stochastic training are consensus-valid.
+- That the P2P layer resists an Internet-scale adversary.
+- That the ERC-20 contract is a trustless bridge.
+- That Mera has a price, a market, or a future listing.
+- That Sybil resistance exists beyond PoW and challenge bonds.
+- That the reference node is an audited mainnet.
+
+### Four research-grade open problems
+
+1. **General ML proofs.** A model hash is a commitment, not a proof.
+   Deterministic re-execution is the only sound verifier, and it only works
+   for verifier classes the node implements.
+2. **Stochastic and GPU training.** Not consensus-valid. Can be recorded as
+   provenance, cannot be paid.
+3. **Permissionless P2P hardening.** Peer discovery, anti-eclipse, connection
+   quotas, fuzzing, formal message limits.
+4. **Trustless L1↔EVM bridge.** Requires a proof or attestation protocol and
+   audited contracts. Not in this release.
+
+These four are not engineering gaps. They are research problems. The project
+states them here and in every other document.
+
+---
+
+## Repository layout
+
+```
+Mera_MLabChain_v0.3.0-dev1/
+├── mlabchain.py              Python scientific / ML client
+├── README.md                 this document
+├── CHANGELOG.md              version history
+├── LICENSE.txt               Apache-2.0
+├── pyproject.toml            Python package metadata
+├── requirements.txt
+├── build.sh                  Linux / macOS build
+├── build.ps1                 Windows build
+├── CMakePresets.json         CMake preset for `cmake --preset release`
+├── Dockerfile                container build
+├── Makefile
+│
+├── assets/                   Logos and graphics
+│   ├── mlabchain.png
+│   ├── MERA.png
+│   ├── mlabchain_txt.png
+│   ├── ascii-magic-1.png
+│   ├── DHA_logo.png
+│   ├── DHA_logo_h.png
+│   └── Hana_the_kitten.jpeg
+│
+├── cpp/
+│   ├── mera_core.cpp         C++ ledger / consensus / economic core
+│   ├── CMakeLists.txt
+│   └── README.md
+│
+├── contracts/
+│   └── MeraScientific.sol    ERC-20 representation template
+│
+├── docs/
+│   ├── ARCHITECTURE.txt      layer split and trust boundaries
+│   ├── MERA_PROTOCOL.md      consensus, issuance, verification model
+│   └── SECURITY.md           improvements, assumptions, production checklist
+│
+├── tests/
+│   └── test_protocol.py      end-to-end protocol tests
+│
+├── tools/
+│   ├── migrate_v2.py         v0.2 → v0.3 migration snapshot
+│   └── release_manifest.py   SHA-256 release manifest
+│
+└── .github/workflows/
+    └── ci.yml                build + test on Linux
+```
+
+---
+
+## Credits
+
+MLabChain is developed and maintained by
+[**Digital Hana Arts**](https://github.com/). The project's mascot is
+**Hana**, who supervises the repository from a comfortable distance and has
+no opinions about Merkle trees.
+
+Protocol design, C++ core, and Python client: Ali Bavarchee.
 
 ---
 
 ## License
 
-Apache License 2.0. See `LICENSE.txt`.
+Apache License 2.0. See [`LICENSE.txt`](LICENSE.txt).
 
 ---
+
+<p align="center">
+  <img src="assets/Hana_the_kitten.jpeg" alt="Hana" width="120" style="border-radius:8px;">
+</p>
+
+<p align="center">
+  <em>Proof-of-Scientific-Work. Verified work is paid. Everything else is provenance.</em>
+</p>
+```
+
 ---
-
-<p align="center">
-  <img src="https://github.com/DigitalHanaArts/DigitalHanaArts/blob/main/DHA_logo.png" width="333" alt="Digital Hana Arts">
-</p>
-
-<h1 align="center">Digital__Hana__Arts®</h1>
-
-<p align="center">
-  <strong>Computational Creativity · Data · Intelligence · Digital Art</strong>
-</p>
-
-<p align="center">
-  <em>
-    Exploring the space where technology becomes a creative medium.
-  </em>
-</p>
-
-<p align="center">
-  <a href="https://github.com/DigitalHanaArts">
-    <img src="https://img.shields.io/badge/GitHub-Digital%20Hana%20Arts-111827?style=flat-square&logo=github&logoColor=white">
-  </a>
-  <img src="https://img.shields.io/badge/AI%20%26%20ML-Research-111827?style=flat-square">
-  <img src="https://img.shields.io/badge/Data%20Science-Computing-111827?style=flat-square">
-  <img src="https://img.shields.io/badge/Digital%20Art-Generative-111827?style=flat-square">
-  <img src="https://img.shields.io/badge/Blockchain-Web3-111827?style=flat-square">
-</p>
