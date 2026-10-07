@@ -4,7 +4,7 @@
   <img src="materials/MERA_v3.png" alt="Mera" width="300"/>
 </p>
 
-<h1 align="center">Mera / MLabChain</h1>
+<h1 align="center">MLabChain / Mera</h1>
 
 <p align="center">
   <em>A scientific-work ledger with a native unit called Mera.</em><br>
