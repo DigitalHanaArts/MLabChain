@@ -699,7 +699,7 @@ Apache License 2.0. See [`LICENSE.txt`](LICENSE.txt).
 ---
 
 <p align="center">
-  <img src="assets/Hana_the_kitten.jpeg" alt="Hana" width="120" style="border-radius:8px;">
+  <img src="[assets/Hana_the_kitten.jpeg](https://github.com/DigitalHanaArts/dha/blob/main/assets/Hana_the_kitten.jpeg)" alt="Hana" width="120" style="border-radius:8px;">
 </p>
 
 <p align="center">
